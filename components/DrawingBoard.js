@@ -1,10 +1,13 @@
 import React from 'react'
 import ColorPicker from './ColorPicker.js';
 import getPosition from './utils/getPosition';
+import io from 'socket.io-client'
+
 export default class DrawingBoard extends React.Component {
 
   constructor(props, context) {
     super(props, context);
+    this.socket = io(`http://localhost:3000`);
     this.state = {
       color: {
         r: '241',
@@ -27,13 +30,8 @@ export default class DrawingBoard extends React.Component {
       window.addEventListener("resize", () => this.canvasPosition = getPosition(canvas), false);
     }
     var context = canvas.getContext('2d');
+
     let drawLine = (x0, y0, x1, y1, color, emit) => {
-      console.log('canvas', canvas.offsetTop);
-      console.log('canvas position', this.canvasPosition);
-      x0 = x0 - canvas.offsetLeft + window.scrollX
-      x1 = x1 - canvas.offsetLeft + window.scrollX
-      y0 = y0 - canvas.offsetTop + window.scrollY
-      y1 = y1 - canvas.offsetTop + window.scrollY
       context.beginPath();
       context.moveTo(x0, y0);
       context.lineTo(x1, y1);
@@ -46,13 +44,21 @@ export default class DrawingBoard extends React.Component {
       var w = canvas.width;
       var h = canvas.height;
 
-      // socket.emit('drawing', {
-      //   x0: x0 / w,
-      //   y0: y0 / h,
-      //   x1: x1 / w,
-      //   y1: y1 / h,
-      //   color: color
-      // });
+      this.socket.emit('drawing', {
+        x0: x0,
+        y0: y0,
+        x1: x1,
+        y1: y1,
+        color: color
+      });
+    }
+
+    let transformCoordsAndDrawLine = (x0, y0, x1, y1, color, emit) => {
+      x0 = x0 - canvas.offsetLeft + window.scrollX
+      x1 = x1 - canvas.offsetLeft + window.scrollX
+      y0 = y0 - canvas.offsetTop + window.scrollY
+      y1 = y1 - canvas.offsetTop + window.scrollY
+      drawLine(x0, y0, x1, y1, color, emit);
     }
 
     let onMouseDown = (e) => {
@@ -64,12 +70,12 @@ export default class DrawingBoard extends React.Component {
     let onMouseUp = (e) => {
       if (!this.drawing) { return; }
       this.drawing = false;
-      drawLine(this.x, this.y, e.clientX, e.clientY, this.color, true);
+      transformCoordsAndDrawLine(this.x, this.y, e.clientX, e.clientY, this.color, true);
     }
 
     let onMouseMove = (e) => {
       if (!this.drawing) { return; }
-      drawLine(this.x, this.y, e.clientX, e.clientY, this.color, true);
+      transformCoordsAndDrawLine(this.x, this.y, e.clientX, e.clientY, this.color, true);
       this.x = e.clientX;
       this.y = e.clientY;
     }
@@ -87,7 +93,10 @@ export default class DrawingBoard extends React.Component {
       };
     }
 
-
+    this.socket.on('drawing', data => {
+      console.log('RECEIVED DRAWING EVENT', data);
+      drawLine(data.x0, data.y0, data.x1, data.y1, data.color, false)
+    });
     this.canvas.addEventListener('mousedown', onMouseDown, false);
     this.canvas.addEventListener('mouseup', onMouseUp, false);
     this.canvas.addEventListener('mouseout', onMouseUp, false);
