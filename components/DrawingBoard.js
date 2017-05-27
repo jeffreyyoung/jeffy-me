@@ -1,8 +1,9 @@
 import React from 'react'
+import ReactDOM from 'react-dom'
 import ColorPicker from './ColorPicker.js';
 import getPosition from './utils/getPosition';
 import io from 'socket.io-client'
-
+import DimensionConverter from './../services/DimensionConverter'
 function throttle(callback, delay) {
   var previousCall = new Date().getTime();
   return function() {
@@ -19,7 +20,12 @@ export default class DrawingBoard extends React.Component {
 
   constructor(props, context) {
     super(props, context);
-    this.socket = io(`http://localhost:3000`);
+    if (typeof window !== 'undefined') {
+      this.socket = io(window.location.origin)
+    } else {
+      this.socket = io(`http://localhost:3000`);
+    }
+
     this.state = {
       color: {
         r: '241',
@@ -48,12 +54,13 @@ export default class DrawingBoard extends React.Component {
     if (!emit) { return; }
     var w = canvas.width;
     var h = canvas.height;
-
+    let coords0 = DimensionConverter.clientCoordsToServerCoords(x0, y0, w, h);
+    let coords1 = DimensionConverter.clientCoordsToServerCoords(x1, y1, w, h);
     this.socket.emit('drawing', {
-      x0: x0,
-      y0: y0,
-      x1: x1,
-      y1: y1,
+      x0: coords0.x,
+      y0: coords0.y,
+      x1: coords1.x,
+      y1: coords1.y,
       color: color
     });
   }
@@ -86,16 +93,38 @@ export default class DrawingBoard extends React.Component {
     this.y = e.clientY;
   }
 
+  updateCanvasDimensions() {
+    if (!this.canvasWrapper) {
+      this.el = ReactDOM.findDOMNode(this);
+      this.canvasWrapper = this.el.querySelector('.canvas-wrapper');
+    }
+    let maxWidth = this.canvasWrapper.clientWidth;
+    if (window) {
+      maxWidth = window.innerWidth - 40;
+    }
+    let maxHeight = this.canvasWrapper.clientHeight;
+    let dimensions = DimensionConverter.getClientCanvasDimensions(maxWidth, maxHeight);
+    this.setState({canvasWidth: dimensions.width, canvasHeight: dimensions.height});
+  }
+
   componentDidMount() {
     let canvas = this.canvas;
     this.canvasPosition = getPosition(canvas);
+    this.updateCanvasDimensions();
     if (window) {
       window.addEventListener("scroll", () => this.canvasPosition = getPosition(canvas), false);
-      window.addEventListener("resize", () => this.canvasPosition = getPosition(canvas), false);
+      window.addEventListener("resize", () => {
+        this.canvasPosition = getPosition(canvas);
+        this.updateCanvasDimensions();
+      }, false);
     }
     this.canvasContext = canvas.getContext('2d');
 
-    this.socket.on('drawing', data => this.drawLine(data.x0, data.y0, data.x1, data.y1, data.color, false));
+    this.socket.on('drawing', data => {
+      let coords0 = DimensionConverter.serverCoordsToClientCoords(data.x0, data.y0, this.canvas.width, this.canvas.height);
+      let coords1 = DimensionConverter.serverCoordsToClientCoords(data.x1, data.y1, this.canvas.width, this.canvas.height);
+      this.drawLine(coords0.x, coords0.y, coords1.x, coords1.y, data.color, false)
+    });
     this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this), false);
     this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this), false);
     this.canvas.addEventListener('mouseout', this.onMouseUp.bind(this), false);
@@ -107,18 +136,32 @@ export default class DrawingBoard extends React.Component {
   }
 
   render() {
+    let {canvasHeight, canvasWidth} = this.state;
     return (
-      <div>
+      <div className='drawingboard-wrapper'>
         <div>
           <ColorPicker color={this.state.color} onChange={color => this.setState({color})}/>
         </div>
-        <div>
-          <canvas width="1000" height="1000" ref={node => this.canvas = node}></canvas>
+        <div className='canvas-wrapper'>
+          <canvas style={{width:canvasWidth,height:canvasHeight}}width={this.state.canvasWidth} height={this.state.canvasHeight} ref={node => this.canvas = node}></canvas>
         </div>
         <style jsx>{`
           canvas {
             background-color: white;
             border: 1px solid gray;
+          }
+          .canvas-wrapper {
+            flex: 1;
+            flex-basis: auto;
+            display: flex;
+            max-width:100%;
+          }
+          .drawingboard-wrapper {
+            flex: 1;
+            flex-basis: auto;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
           }
         `}</style>
       </div>

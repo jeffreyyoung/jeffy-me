@@ -2,6 +2,7 @@ const express = require('express')
 const next = require('next')
 
 const dev = process.env.NODE_ENV !== 'production'
+console.log('IS PROD', dev);
 const app = next({ dev })
 const handle = app.getRequestHandler()
 const SocketHandler = require('./socket');
@@ -26,11 +27,11 @@ app.prepare()
   server.get('*', (req, res) => {
     return handle(req, res)
   })
-
+  console.log('here???wtf');
   const socketHandler = new SocketHandler(http);
   http.listen(3000, (err) => {
     if (err) throw err
-    console.log('> Ready on http://localhost:3000')
+    console.log('> wtfReady on http://localhost:3000')
   })
 
 

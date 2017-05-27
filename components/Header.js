@@ -1,20 +1,32 @@
 import Link from 'next/link'
 
-const linkStyle = {
-  marginRight: 15
-}
 
 const Header = () => (
     <div>
         <Link href="/">
-          <a style={linkStyle}>Home</a>
+          <a>Home</a>
         </Link>
         <Link href="/about">
-          <a style={linkStyle}>About</a>
+          <a>About</a>
         </Link>
         <Link href="/drawing">
-          <a style={linkStyle}>Draw</a>
+          <a>Draw</a>
         </Link>
+        <style jsx>{`
+          div {
+            display: flex;
+            flex-direction: row;
+            margin-bottom: 10px;
+          }
+          a {
+            color: white;
+            text-decoration: none;
+            margin-right: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: dodgerblue;
+          }
+        `}</style>
     </div>
 )
 

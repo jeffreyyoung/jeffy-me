@@ -10,13 +10,9 @@ const User =  (props) => (
 )
 
 User.getInitialProps = async function (context) {
-    console.log('set timeout');
     const { id } = context.query
     const res = await fetch(`https://api.github.com/users/${id}`)
     const user = await res.json()
-
-    console.log(`Fetched user: ${user.login}`)
-
     return { user }
 }
 

@@ -21,11 +21,8 @@ Index.getInitialProps = async function() {
   const res = await fetch('https://api.github.com/users')
 
   let data = [];
-  console.log('WAS RES OK?', res.ok);
   if (res.ok) {
     data = await res.json()
-    console.log(JSON.stringify(data, null, 3))
-    console.log(`Github Index page fetched data fetched. Count: ${data.length}`)
   }
 
   return {
